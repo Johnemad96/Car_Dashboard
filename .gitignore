@@ -1,0 +1,38 @@
+# ----------------------------
+# Ignore Yocto build directories (generated)
+# ----------------------------
+yocto/build-qemu/*
+yocto/build-rpi/*
+
+# BUT keep build configuration files
+!yocto/build-qemu/conf/
+!yocto/build-qemu/conf/local.conf
+!yocto/build-qemu/conf/bblayers.conf
+
+!yocto/build-rpi/conf/
+!yocto/build-rpi/conf/local.conf
+!yocto/build-rpi/conf/bblayers.conf
+
+# Ignore Yocto auto-generated conf helper files
+yocto/build-qemu/conf/conf-notes.txt
+yocto/build-qemu/conf/conf-summary.txt
+yocto/build-qemu/conf/templateconf.cfg
+
+# ----------------------------
+# Yocto shared caches
+# ----------------------------
+yocto-cache/
+
+# ----------------------------
+# Editor & temp files
+# ----------------------------
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# ----------------------------
+# Local history
+# ----------------------------
+yocto/.history/
