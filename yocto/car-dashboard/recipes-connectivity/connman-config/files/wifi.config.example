@@ -1,0 +1,8 @@
+#remove .example from the file name and write the correct credentials
+[service_wifi_home]
+Type=wifi
+Name=YOUR_SSID
+Security=psk
+Passphrase=YOUR_PASSWORD
+AutoConnect=true
+Priority=10

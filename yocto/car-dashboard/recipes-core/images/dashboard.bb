@@ -12,9 +12,16 @@ inherit core-image
 IMAGE_INSTALL += " packagegroup-core-boot"
 
 IMAGE_INSTALL += " \
+    packagegroup-base-extended \
+    linux-firmware-rpidistro-bcm43456 \
     openssh \
     connman \
     connman-client \
+    connman-config \
     wpa-supplicant \
     iw \
+    avahi-daemon \
+    avahi-autoipd \
 "
+# Enable SSH daemon to start on boot
+EXTRA_IMAGE_FEATURES += " ssh-server-openssh"
