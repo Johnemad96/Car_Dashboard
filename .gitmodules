@@ -4,3 +4,6 @@
 [submodule "yocto/meta-oe"]
 	path = yocto/meta-oe
 	url = git://git.openembedded.org/meta-openembedded
+[submodule "yocto/meta-rpi"]
+	path = yocto/meta-rpi
+	url = git://git.yoctoproject.org/meta-raspberrypi
