@@ -1,0 +1,108 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          enable-wifi
+# Required-Start:    $local_fs
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Enable WiFi on boot
+### END INIT INFO
+
+case "$1" in
+    start)
+        # Wait for kernel modules to load
+        sleep 2
+        
+        echo "Resetting WiFi Hardware..."
+        /usr/sbin/rfkill block wifi
+        sleep 2
+
+        echo "Enabling WiFi hardware..."
+
+        # 1. Physical unblock
+        /usr/sbin/rfkill unblock wifi
+        
+        # 2. Bring interface up
+        /sbin/ip link set wlan0 down
+        sleep 2
+        /sbin/ip link set wlan0 up
+        if [ ! -d /sys/class/net/wlan0 ]; then
+            echo "Waiting for wlan0..."
+            sleep 5
+        fi
+        # 3. Disable power save (fixes packet loss)
+        /usr/sbin/iw dev wlan0 set power_save off
+        
+        # 4. Set regulatory domain
+        # Set regulatory domain (this is safe to do)
+        /usr/sbin/iw reg set US 2>/dev/null || true
+        
+        # 5. Let hardware settle before ConnMan starts
+        sleep 10
+        echo "Hardware ready for ConnMan"
+        
+        # echo "WiFi hardware ready"
+        ;;
+    stop)
+        # Nothing to do on shutdown
+        ;;
+    restart)
+        $0 stop
+        $0 start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac
+
+exit 0
+
+# case "$1" in
+#     start)
+#         # 1. Physical unblock
+#         /usr/sbin/rfkill unblock wifi
+#         # 2. Administrative Up
+#         /sbin/ip link set wlan0 up
+#         # 3. Optional: Disable power save to prevent Claude's 40% packet loss
+#         /usr/sbin/iw dev wlan0 set power_save off
+#         # 4. Set regulatory domain to EG
+#         /usr/sbin/iw reg set EG
+#         #   5. sleep a moment to let things settle
+#         sleep 4
+#         ;;
+#     *)
+#         exit 0
+#         ;;
+# esac
+# case "$1" in
+#     start)
+#         echo "Enabling WiFi..."
+#         # Unblock WiFi
+#         /usr/sbin/rfkill unblock wifi
+        
+#         # Give it a moment
+#         sleep 1
+        
+#         # Enable WiFi in ConnMan
+#         /usr/bin/connmanctl enable wifi
+        
+#         # Bring interface up
+#         /sbin/ip link set wlan0 up
+        
+#         echo "WiFi enabled"
+#         ;;
+#     stop)
+#         # Nothing to do
+#         ;;
+#     restart|reload)
+#         $0 stop
+#         $0 start
+#         ;;
+#     *)
+#         echo "Usage: $0 {start|stop|restart}"
+#         exit 1
+#         ;;
+# esac
+
+# exit 0

@@ -36,3 +36,9 @@ yocto-cache/
 # Local history
 # ----------------------------
 yocto/.history/
+
+# ----------------------------
+# Credential
+# ----------------------------
+yocto/car-dashboard/recipes-connectivity/connman-config/files/wifi.config
+yocto/car-dashboard/recipes-connectivity/connman-config/files/enable-wifi.service

@@ -15,13 +15,20 @@ IMAGE_INSTALL += " \
     packagegroup-base-extended \
     linux-firmware-rpidistro-bcm43456 \
     openssh \
+    wpa-supplicant \
+    iw \
+    wireless-regdb-static \
+    busybox-udhcpc \
     connman \
     connman-client \
     connman-config \
-    wpa-supplicant \
-    iw \
     avahi-daemon \
     avahi-autoipd \
 "
 # Enable SSH daemon to start on boot
 EXTRA_IMAGE_FEATURES += " ssh-server-openssh"
+
+#IMAGE_INSTALL:append = " wireless-regdb-static"
+
+# In your local.conf or image recipe
+IMAGE_INSTALL:append = " rng-tools"
