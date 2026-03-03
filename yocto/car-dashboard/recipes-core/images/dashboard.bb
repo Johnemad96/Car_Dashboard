@@ -9,13 +9,8 @@ inherit core-image
 
 # reuse Sato content via packagegroup
 
-IMAGE_INSTALL += " packagegroup-core-boot"
-
 IMAGE_INSTALL += " \
-    packagegroup-base-extended \
     linux-firmware-rpidistro-bcm43456 \
-    openssh \
-    wpa-supplicant \
     iw \
     wireless-regdb-static \
     busybox-udhcpc \
