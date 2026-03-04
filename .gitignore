@@ -12,6 +12,7 @@ yocto/build-rpi/*
 !yocto/build-rpi/conf/
 !yocto/build-rpi/conf/local.conf
 !yocto/build-rpi/conf/bblayers.conf
+!yocto/build-rpi/workspace/conf/layer.conf
 
 # Ignore Yocto auto-generated conf helper files
 yocto/build-qemu/conf/conf-notes.txt
