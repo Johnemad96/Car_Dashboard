@@ -32,3 +32,9 @@ IMAGE_INSTALL:append = " rng-tools"
 IMAGE_INSTALL:append = " packagegroup-ros2-demos"
 
 IMAGE_INSTALL:append = " ros-env"
+
+# TOOLCHAIN_TARGET_TASK:append = " packagegroup-ros2-demos-dev"
+# TOOLCHAIN_TARGET_TASK:append = " packagegroup-ros-world-dev"
+TOOLCHAIN_TARGET_TASK:append = " packagegroup-dashboard-ros-dev"
+
+#TOOLCHAIN_HOST_TASK:append = " nativesdk-python3-ament-package"
