@@ -13,3 +13,6 @@
 [submodule "yocto/meta-ros"]
 	path = yocto/meta-ros
 	url = https://github.com/ros/meta-ros
+[submodule "yocto/meta-qt6"]
+	path = yocto/meta-qt6
+	url = https://code.qt.io/yocto/meta-qt6.git

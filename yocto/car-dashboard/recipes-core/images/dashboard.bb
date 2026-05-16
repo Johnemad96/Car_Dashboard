@@ -33,6 +33,26 @@ IMAGE_INSTALL:append = " packagegroup-ros2-demos"
 
 IMAGE_INSTALL:append = " ros-env"
 
+#QT
+# Qt6 runtime libraries needed for QML dashboard rendering
+# qtbase: core Qt library (event loop, networking, basic types)
+# qtdeclarative: QML engine and QtQuick - required for .qml files to run
+# qtquickcontrols2: QtQuick controls used in QML UI components
+# mesa: open source OpenGL implementation - provides OpenGL ES on the Pi
+# mesa-driver-vc4: the actual GPU driver for Pi's VideoCore IV/V GPU
+#                  without this, OpenGL calls have nothing to talk to
+#                  and Qt's eglfs platform plugin cannot render anything
+IMAGE_INSTALL:append = " qtbase qtdeclarative mesa"
+IMAGE_INSTALL:append = " qtdeclarative-tools"
+IMAGE_INSTALL:append = " qtbase-plugins"
+
+# fonts for qt
+IMAGE_INSTALL:append = " ttf-dejavu-sans ttf-dejavu-sans-mono fontconfig"
+
+# IMAGE_INSTALL:append = " qtdeclarative-dev qtbase-staticdev"
+TOOLCHAIN_TARGET_TASK:append = " qtbase-staticdev qtdeclarative-staticdev"
+
+# EXTRA_OECMAKE:append:pn-qtbase = " -DQT_BUILD_EXAMPLES=OFF"
 # TOOLCHAIN_TARGET_TASK:append = " packagegroup-ros2-demos-dev"
 # TOOLCHAIN_TARGET_TASK:append = " packagegroup-ros-world-dev"
 TOOLCHAIN_TARGET_TASK:append = " packagegroup-dashboard-ros-dev"
