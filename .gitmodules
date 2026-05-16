@@ -10,3 +10,6 @@
 	path = yocto/meta-rpi
 	url = git://git.yoctoproject.org/meta-raspberrypi
 	branch = scarthgap
+[submodule "yocto/meta-ros"]
+	path = yocto/meta-ros
+	url = https://github.com/ros/meta-ros

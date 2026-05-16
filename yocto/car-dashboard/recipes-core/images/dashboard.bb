@@ -27,3 +27,8 @@ EXTRA_IMAGE_FEATURES += " ssh-server-openssh"
 
 # In your local.conf or image recipe
 IMAGE_INSTALL:append = " rng-tools"
+
+#deps for ros2
+IMAGE_INSTALL:append = " packagegroup-ros2-demos"
+
+IMAGE_INSTALL:append = " ros-env"
