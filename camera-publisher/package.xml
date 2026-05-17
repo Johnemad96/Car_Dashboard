@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>camera_publisher</name>
+  <version>0.1.0</version>
+  <description>
+    Raspberry Pi Camera v2 (IMX219) capture using the libcamera C++ API.
+    Provides a no-ROS isolation test (camera_check) and a ROS 2 publisher
+    node (camera_publisher) that emits either sensor_msgs/Image (raw) or
+    sensor_msgs/CompressedImage (JPEG, via libjpeg-turbo).
+  </description>
+  <maintainer email="nourrasheed96@gmail.com">car-dashboard</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+
+  <!--
+    libcamera and libjpeg-turbo (turbojpeg API) are pulled in via
+    pkg-config from CMakeLists.txt. We declare them here so rosdep
+    on the host can resolve them, and so it is obvious from the
+    manifest what the native system dependencies are.
+  -->
+  <depend>libcamera</depend>
+  <depend>libjpeg-turbo</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

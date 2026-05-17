@@ -43,3 +43,18 @@ yocto/.history/
 # ----------------------------
 yocto/car-dashboard/recipes-connectivity/connman-config/files/wifi.config
 yocto/car-dashboard/recipes-connectivity/connman-config/files/enable-wifi.service
+
+# ----------------------------
+# Captured frame artifacts (debug dumps from camera_check etc.)
+# ----------------------------
+/*.raw
+/frame_*.png
+/*.jpg
+scp_pcis/
+
+# ----------------------------
+# colcon / ament build output (camera-publisher and any future ROS pkgs)
+# ----------------------------
+build/
+install/
+log/
