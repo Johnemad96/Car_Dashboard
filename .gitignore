@@ -46,10 +46,13 @@ yocto/car-dashboard/recipes-connectivity/connman-config/files/enable-wifi.servic
 
 # ----------------------------
 # Captured frame artifacts (debug dumps from camera_check etc.)
+# Match at any depth so they're caught whether they land at the repo root
+# or inside rpi4-camera-imx219/.
 # ----------------------------
-/*.raw
-/frame_*.png
-/*.jpg
+*.raw
+frame_*.png
+tmpframe*
+rpi4-camera-imx219/*.jpg
 scp_pcis/
 
 # ----------------------------
@@ -58,3 +61,18 @@ scp_pcis/
 build/
 install/
 log/
+
+# ----------------------------
+# qt-dashboard build / IDE artifacts
+# build/ and install/ above already catch the CMake build trees;
+# these rules add the Qt-Creator-specific user files and per-target
+# build dirs (build-rpi/ from the cross-compile script).
+# ----------------------------
+qt-dashboard/build-rpi/
+qt-dashboard/build-*/
+*.user
+*.user.*
+.qtcreator/
+.history/
+.codex/
+.agents/
