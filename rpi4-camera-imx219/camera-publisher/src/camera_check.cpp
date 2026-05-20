@@ -9,10 +9,13 @@
 // ROS node won't either, and you've cut the search space in half.
 //
 // Usage:
-//   camera_check [--count N] [--outdir PATH] [--frames M]
+//   camera_check [--outdir PATH] [--count N] [--frames M]
 //
-//   --count N   write every Nth frame to disk as a raw file (default 30)
-//   --outdir P  directory for raw dumps (default /tmp)
+//   --outdir P  directory for raw dumps. Default is empty, which
+//               means "do not write anything to disk" -- the tool
+//               just prints per-frame stats.
+//   --count N   when --outdir is set, write every Nth frame
+//               (default 30). Ignored when --outdir is empty.
 //   --frames M  stop after M frames (default 0 = run until Ctrl-C)
 //
 // Each captured frame produces one terminal line of the form:
@@ -44,9 +47,11 @@ void onSigint(int) { g_stop = true; }
 
 void usage(const char *argv0) {
   std::fprintf(stderr,
-               "usage: %s [--count N] [--outdir PATH] [--frames M]\n"
-               "  --count N    write every Nth frame to disk (default 30)\n"
-               "  --outdir P   directory for raw dumps (default /tmp)\n"
+               "usage: %s [--outdir PATH] [--count N] [--frames M]\n"
+               "  --outdir P   directory for raw dumps. Default empty:\n"
+               "               nothing is written, only stats are printed.\n"
+               "  --count N    when --outdir is set, write every Nth frame\n"
+               "               (default 30). Ignored if --outdir is empty.\n"
                "  --frames M   stop after M frames (default 0 = run forever)\n",
                argv0);
 }
@@ -54,8 +59,11 @@ void usage(const char *argv0) {
 }  // namespace
 
 int main(int argc, char **argv) {
+  // Defaults: do NOT dump anything. The tool is primarily a live
+  // monitor; writing raw frames to disk is opt-in via --outdir.
+  // The 30-frame cadence is only applied once dumping is enabled.
   unsigned int   count_n = 30;
-  std::string    outdir  = "/tmp";
+  std::string    outdir;            // empty => no disk writes
   std::uint64_t  frames_max = 0;
   std::uint32_t  width   = 1640;
   std::uint32_t  height  = 1232;
@@ -90,7 +98,11 @@ int main(int argc, char **argv) {
   std::signal(SIGINT, onSigint);
   std::signal(SIGTERM, onSigint);
 
-  std::filesystem::create_directories(outdir);
+  // Only touch the filesystem if the user asked us to dump frames.
+  const bool dump_enabled = !outdir.empty();
+  if (dump_enabled) {
+    std::filesystem::create_directories(outdir);
+  }
 
   camera_publisher::CameraCapture cap;
   camera_publisher::CaptureConfig cfg;
@@ -128,7 +140,7 @@ int main(int argc, char **argv) {
                 f.length, dt_ms, fps);
     std::fflush(stdout);
 
-    if (n % every == 0) {
+    if (dump_enabled && n % every == 0) {
       char path[512];
       std::snprintf(path, sizeof(path),
                     "%s/camera_check_%06u_%ux%u_%s.raw",

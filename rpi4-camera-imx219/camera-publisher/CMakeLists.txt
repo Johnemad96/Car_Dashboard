@@ -15,6 +15,20 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # ---------------------------------------------------------------------------
+# Cross-compile support (Yocto SDK)
+#
+# When building via the Yocto SDK, ROS 2 is installed at
+# $OECORE_TARGET_SYSROOT/opt/ros/humble, which is NOT on CMake's default
+# search path. The OE toolchain file also restricts find_package() to the
+# sysroot (CMAKE_FIND_ROOT_PATH), so simply exporting AMENT_PREFIX_PATH is
+# not enough — the ROS prefix must be added to CMAKE_PREFIX_PATH explicitly.
+# This block is inert for a native build (the env var is undefined there).
+# ---------------------------------------------------------------------------
+if(DEFINED ENV{OECORE_TARGET_SYSROOT})
+    list(APPEND CMAKE_PREFIX_PATH "$ENV{OECORE_TARGET_SYSROOT}/opt/ros/humble")
+endif()
+
+# ---------------------------------------------------------------------------
 # ROS 2 / ament dependencies
 # ---------------------------------------------------------------------------
 find_package(ament_cmake REQUIRED)

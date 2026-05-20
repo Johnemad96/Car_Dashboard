@@ -97,6 +97,29 @@ exit; they never touch libcamera or rclcpp objects directly. The
 spin/wait loop sees the flag and does the actual teardown on the main
 thread.
 
+### Teardown race (fixed): `stopping_` flag
+
+Earlier versions of `CameraCapture::stop()` called `camera_->stop()`
+first and then flipped `streaming_ = false`. The libcamera completion
+thread could land an `onRequestCompleted()` call between those two
+steps: it would observe `streaming_ == true`, hit the requeue path,
+and call `queueRequest()` on a pipeline that libcamera had already
+moved to `Stopping`. libcamera rejects that with `-EACCES (-13)` and
+logs:
+
+```
+Camera in Stopping state trying queueRequest()
+queueRequest (recycle) failed: -13
+```
+
+We now carry a separate `std::atomic<bool> stopping_` set inside
+`stop()` **before** `camera_->stop()`. `onRequestCompleted()` checks
+it (with `memory_order_acquire`) just before the reuse/requeue path
+and bails out if it's set. `start()` clears it on each fresh run so a
+restart is clean. This atomic is the synchronization point between the
+libcamera callback thread and `stop()`'s caller; no other lock needed
+on that path.
+
 ### Why a `--mode` argv flag and not a launch parameter
 
 Both modes are exposed as the same node. The spec asked for the mode
@@ -164,9 +187,48 @@ specific check to run on the Pi:
    the `video` group (and on some images also `render`). The Yocto
    image must include those groups for the dashboard service user.
 
+## Active diagnostics in the code
+
+### `publishJpeg` byte-count log (throttled)
+
+`camera_publisher_node.cpp::publishJpeg` logs, at ~1 Hz, the JPEG
+buffer size we are about to assign into `CompressedImage::data`
+together with the negotiated `width`/`height`/`stride`/`format`. This
+is **diagnostic-only** — no sizing logic was changed. It is in place
+to confirm on real hardware that `buf.size()` matches the actual JPEG
+byte count produced by `JpegEncoder::encode` (TurboJPEG's
+`jpeg_size`). An independent source review (Codex) found the
+JPEG/CompressedImage path correct: `data.size()` already equals
+TurboJPEG's returned compressed length, and `out.assign` /
+`data.assign` are doing the right thing. The log is here only to
+verify that on-target reality matches that review.
+
+### Unconfirmed: "sequence size exceeds remaining buffer"
+
+A serialization symptom of this shape has been observed at runtime
+but **could not be reproduced from the source** under review. The
+working hypothesis is a **deployed-binary / source mismatch** (a
+stale binary on the Pi, not a code defect). That is being tested
+separately by full rebuild + redeploy; the throttled diagnostic above
+will be the source of truth once the freshly built binary runs on
+hardware. Do not "fix" the JPEG sizing code on the basis of this
+symptom alone — the reviewed code is correct.
+
 ## Process / status
 
 * Built: ✓ (colcon build clean on Ubuntu 24.04 / ROS 2 Jazzy).
 * Self-tested on host with a USB webcam: ✓ (frames flow, clean SIGINT).
 * End-to-end run on the Pi: NOT YET DONE — requires hardware access.
 * Yocto recipe: out of scope of this PR.
+
+## Changelog
+
+* Teardown race **F1**: `CameraCapture` now carries a dedicated
+  `std::atomic<bool> stopping_` flag set inside `stop()` before
+  `camera_->stop()`. `onRequestCompleted()` checks it before the
+  reuse/requeue path and exits early during teardown. Eliminates the
+  "Camera in Stopping state trying queueRequest()" / "-EACCES (-13)"
+  spam observed on SIGINT. See the "Teardown race" section above.
+* Added throttled `publishJpeg` diagnostic line (size + geometry +
+  format). Observation only; no sizing logic touched. See the
+  "Active diagnostics" section above.

@@ -30,11 +30,33 @@ namespace {
 // Map a libcamera packed pixel format to a TurboJPEG TJPF_* constant
 // and the byte size of one source pixel. Returns true on a known
 // packed format.
+// bool mapPacked(libcamera::PixelFormat pf, int &tjpf, int &bpp) {
+//   using namespace libcamera::formats;
+//   if (pf == RGB888)   { tjpf = TJPF_RGB;  bpp = 3; return true; }
+//   if (pf == BGR888)   { tjpf = TJPF_BGR;  bpp = 3; return true; }
+//   if (pf == XRGB8888) { tjpf = TJPF_XRGB; bpp = 4; return true; }
+//   if (pf == XBGR8888) { tjpf = TJPF_XBGR; bpp = 4; return true; }
+//   if (pf == RGBX8888) { tjpf = TJPF_RGBX; bpp = 4; return true; }
+//   if (pf == BGRX8888) { tjpf = TJPF_BGRX; bpp = 4; return true; }
+//   if (pf == RGBA8888) { tjpf = TJPF_RGBA; bpp = 4; return true; }
+//   if (pf == BGRA8888) { tjpf = TJPF_BGRA; bpp = 4; return true; }
+//   if (pf == ARGB8888) { tjpf = TJPF_ARGB; bpp = 4; return true; }
+//   if (pf == ABGR8888) { tjpf = TJPF_ABGR; bpp = 4; return true; }
+//   return false;
+// }
 bool mapPacked(libcamera::PixelFormat pf, int &tjpf, int &bpp) {
   using namespace libcamera::formats;
   if (pf == RGB888)   { tjpf = TJPF_RGB;  bpp = 3; return true; }
   if (pf == BGR888)   { tjpf = TJPF_BGR;  bpp = 3; return true; }
-  if (pf == XRGB8888) { tjpf = TJPF_XRGB; bpp = 4; return true; }
+
+  if (pf == XRGB8888) {
+    // libcamera XRGB8888 is stored in memory as B,G,R,X on little-endian systems,
+    // so TurboJPEG must read it as BGRX. Do not "correct" this back to XRGB.
+    tjpf = TJPF_BGRX;
+    bpp = 4;
+    return true;
+  }
+
   if (pf == XBGR8888) { tjpf = TJPF_XBGR; bpp = 4; return true; }
   if (pf == RGBX8888) { tjpf = TJPF_RGBX; bpp = 4; return true; }
   if (pf == BGRX8888) { tjpf = TJPF_BGRX; bpp = 4; return true; }

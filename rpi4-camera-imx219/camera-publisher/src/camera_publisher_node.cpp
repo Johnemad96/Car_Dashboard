@@ -183,6 +183,17 @@ class CameraPublisherNode : public rclcpp::Node {
                            rc, f.pixel_format_str.c_str());
       return;
     }
+    // Diagnostic only: observe (do NOT change) the JPEG byte count that
+    // we're about to assign into CompressedImage::data, alongside the
+    // negotiated frame geometry. This is here to confirm on real
+    // hardware that buf.size() matches TurboJPEG's actual compressed
+    // length and rules out a sizing mismatch as the source of the
+    // "sequence size exceeds remaining buffer" symptom seen in
+    // serialization. Throttled to ~1 Hz so it does not flood the log.
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+                         "publishJpeg: jpeg_bytes=%zu frame=%ux%u stride=%u fmt=%s",
+                         buf.size(), f.width, f.height, f.stride,
+                         f.pixel_format_str.c_str());
     auto msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
     msg->header.stamp = stamp;
     msg->header.frame_id = "camera";

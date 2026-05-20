@@ -130,6 +130,12 @@ class CameraCapture {
   FrameCallback        on_frame_;
   std::mutex           cb_mutex_;   // guards on_frame_ + streaming_ flips
   std::atomic<bool>    streaming_{false};
+  // Set by stop() BEFORE camera_->stop() so the libcamera completion
+  // thread can bail out of the requeue path while the pipeline is
+  // transitioning to Stopping. Without this, in-flight callbacks race
+  // camera_->stop() and call queueRequest() on a stopping pipeline,
+  // which libcamera rejects with -EACCES (-13).
+  std::atomic<bool>    stopping_{false};
   std::atomic<bool>    acquired_{false};
   std::uint64_t        target_frame_duration_us_ = 0;
 };

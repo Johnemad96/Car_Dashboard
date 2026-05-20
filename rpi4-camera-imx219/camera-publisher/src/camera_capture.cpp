@@ -252,6 +252,10 @@ int CameraCapture::start(FrameCallback cb) {
   }
   if (streaming_) return 0;
 
+  // Clear any stopping_ flag left over from a previous stop() so the
+  // completion thread will requeue on the new run.
+  stopping_.store(false, std::memory_order_release);
+
   {
     std::lock_guard<std::mutex> g(cb_mutex_);
     on_frame_ = std::move(cb);
@@ -305,10 +309,17 @@ int CameraCapture::start(FrameCallback cb) {
 }
 
 void CameraCapture::stop() {
-  // Idempotent teardown. Order matters: stop the pipeline FIRST so no
-  // new completions fire while we're freeing what they reference.
-
+  // Idempotent teardown. Order matters:
+  //   (a) set stopping_ so any in-flight onRequestCompleted() returns
+  //       early without trying to re-queue. This MUST be set before
+  //       camera_->stop(); otherwise a completion racing the pipeline
+  //       transition will call queueRequest() on a Stopping camera,
+  //       which libcamera rejects (-EACCES) and prints "Camera in
+  //       Stopping state trying queueRequest()".
+  //   (b) stop the pipeline, which cancels all in-flight requests.
+  //   (c) flip streaming_ off and continue with resource teardown.
   if (camera_ && streaming_) {
+    stopping_.store(true, std::memory_order_release);
     // ---- Step 14: stop the pipeline ------------------------------------
     camera_->stop();
     streaming_ = false;
@@ -418,7 +429,14 @@ void CameraCapture::onRequestCompleted(libcamera::Request *request) {
   // reuse(ReuseBuffers) keeps the FrameBuffer attached so we don't
   // have to re-addBuffer() every cycle. If we forget to queue it back,
   // the pool drains and the pipeline stalls.
-  if (!streaming_) return;
+  //
+  // Re-check both flags here:
+  //   * stopping_ is set by stop() BEFORE camera_->stop(), so it is the
+  //     synchronization point between this libcamera callback thread
+  //     and the stop() caller. If it's set, the pipeline is on its way
+  //     to Stopping and queueRequest() will be rejected with -EACCES.
+  //   * streaming_ catches the post-stop steady state.
+  if (stopping_.load(std::memory_order_acquire) || !streaming_) return;
   request->reuse(libcamera::Request::ReuseBuffers);
   int rc = camera_->queueRequest(request);
   if (rc < 0) {
