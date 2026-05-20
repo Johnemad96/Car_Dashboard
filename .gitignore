@@ -78,4 +78,5 @@ qt-dashboard/build-*/
 .codex/
 .agents/
 rpi4-camera-imx219/CROSS_COMPILE.MD
+rpi4-camera-imx219/camera-publisher/LIBCAMERA_LIFECYCLE.md
 CLAUDE.md

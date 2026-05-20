@@ -110,7 +110,8 @@ obvious on the wire which encoding is active.
 QoS: the ROS 2 **sensor_data** profile (best-effort, depth 5). Live video
 should drop stale frames rather than buffer them.
 
-### Examples
+### Examples## libcamera capture lifecycle (the short version)
+
 
 ```bash
 # Source the workspace first:
@@ -166,59 +167,82 @@ actually got.
 
 ---
 
-## libcamera capture lifecycle (the short version)
+## Pipeline architecture
 
-This README would not be complete without a one-page mental model of
-what `camera_capture.cpp` is doing under the hood. The numbered steps
-match the section headers in that file.
+The package factors the capture path into one library and two thin
+front-ends. The library (`camera_capture`) owns every interaction with
+libcamera; the two binaries (`camera_check`, `camera_publisher_node`)
+consume frames via a single `FrameCallback` and decide what to do with
+them.
 
-1. **`CameraManager::start()`** spins up libcamera's pipeline-handler
-   machinery and enumerates cameras. It must outlive every Camera handle
-   we acquire from it.
-2. **`cm->cameras()`** lists what was found; we pick `[0]`.
-3. **`Camera::acquire()`** takes exclusive control. Other processes
-   (including the `cam` CLI) cannot stream the camera while we hold it.
-4. **`generateConfiguration({StreamRole::Viewfinder})`** asks the
-   pipeline handler for a sensible default `StreamConfiguration` given
-   the role we declare.
-5. We override only `size` and `bufferCount` -- pixel format is left to
-   libcamera so we always get something the platform can emit
-   efficiently.
-6. **`config->validate()`** returns `Valid`, `Adjusted`, or `Invalid`.
-   If `Adjusted`, the fields have been rewritten in place to the closest
-   legal combination; we re-read them.
-7. **`Camera::configure(config)`** commits.
-8. **`FrameBufferAllocator::allocate(stream)`** produces DMA-capable
-   buffers (dmabuf fds on Linux).
-9. For each buffer we **`mmap()`** every plane so the CPU can read it.
-10. We create **one `Request` per buffer** and attach the buffer to it
-    via `addBuffer()`. Requests are reused for the lifetime of the
-    pipeline (`request->reuse(ReuseBuffers)`).
-11. We connect a slot to **`camera->requestCompleted`** -- the
-    asynchronous signal libcamera fires when a Request has been
-    filled. **This slot runs on a libcamera-owned thread.**
-12. We supply a `FrameDurationLimits` control to pin the frame rate
-    and call **`camera->start()`** to begin streaming.
-13. We **prime** the pipeline by queueing every Request once.
-14. Frames arrive via `requestCompleted`. Inside the callback we
-    consume the buffer, then `reuse(ReuseBuffers)` and re-queue the
-    Request so the pool stays full.
-15. On shutdown: `camera->stop()`, drop all Requests, `munmap` every
-    plane, `allocator->free()`, `camera->release()`, drop the manager.
+```
+                    +------------------------------+
+sensor (IMX219)     |  camera_capture (library)    |
+        |           |  - libcamera CameraManager   |
+        v           |  - StreamConfiguration       |
+   MIPI CSI-2       |  - FrameBufferAllocator      |
+        |           |  - Request lifecycle         |
+        v           |  - mmap + FrameCallback fan- |
+  Unicam + ISP      |    out to consumers          |
+  (bcm2835)         +---------------+--------------+
+        |                           |
+        v                           v
+ libcamera vc4         +------------------------+      +------------------------+
+ pipeline handler ---> | camera_check           |      | camera_publisher_node  |
+                       | - per-frame stats line |      | - raw  -> sensor_msgs  |
+                       | - optional raw dump    |      |          /Image        |
+                       +------------------------+      | - jpeg -> CompressedImg|
+                                                       |   via libjpeg-turbo    |
+                                                       +-----------+------------+
+                                                                   |
+                                                                   v
+                                                       ROS 2 (rclcpp), sensor_data QoS
+```
 
-### Pitfalls that bite people
+### Stage-by-stage
+
+| Stage                         | What happens                                                                                                                                                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Manager + acquire**      | `CameraManager::start()` enumerates cameras via the rpi/vc4 pipeline handler. `Camera::acquire()` takes exclusive control (no other process, not even the `cam` CLI, can stream).                                                                          |
+| **2. Configure stream**       | `generateConfiguration({Viewfinder})` returns a sensible default. We override only `size` and `bufferCount`; pixel format is left to libcamera, then `validate()` may adjust the request to the nearest legal combination, which we re-read.              |
+| **3. Allocate buffers**       | `FrameBufferAllocator::allocate(stream)` produces DMA-capable buffers (dmabuf fds). Each plane is `mmap()`-ed once at startup so the CPU can read frame contents with no per-frame syscall.                                                                |
+| **4. Build Requests**         | One `Request` per buffer. Requests are reused for the lifetime of the pipeline via `reuse(ReuseBuffers)` -- libcamera does not allocate per frame.                                                                                                        |
+| **5. Start + prime**          | `camera->start()` with a `FrameDurationLimits` control pins the frame rate. We then queue every Request once to prime the pipeline.                                                                                                                       |
+| **6. Frame completion**       | libcamera fires `requestCompleted` on its own internal thread when a Request has been filled. The slot wraps the buffer in a `Frame` struct (pointer + length + format + stride + timestamp) and hands it to the `FrameCallback` the consumer registered. |
+| **7a. Consumer: stats only**  | `camera_check` prints one line per frame with format, stride, bytes, and inter-frame delta, and optionally dumps every Nth frame to disk. No ROS, no network.                                                                                              |
+| **7b. Consumer: ROS raw**     | `camera_publisher_node --mode raw` wraps the buffer in `sensor_msgs/Image` (encoding derived from the negotiated pixel format, `step = stride`) and publishes on `/camera/image_raw`.                                                                      |
+| **7c. Consumer: ROS jpeg**    | `camera_publisher_node --mode jpeg` calls `JpegEncoder::encode()` (libjpeg-turbo, CPU) and publishes the resulting bytes as `sensor_msgs/CompressedImage` on `/camera/image_compressed`. Format string is `"jpeg"`.                                        |
+| **8. Re-queue**               | The callback returns; the capture core calls `request->reuse(ReuseBuffers)` and re-queues so the buffer pool stays full. There is no per-frame allocation in steady state.                                                                                |
+| **9. Shutdown**               | On SIGINT: `camera->stop()`, drop Requests, `munmap` every plane, `allocator->free()`, `camera->release()`, drop the manager. Skipping any of these leaves the camera acquired and the Pi needs a reboot to recover.                                       |
+
+### Threading model
+
+* The completion callback runs on **libcamera's own thread**, not the
+  thread that called `start()`. Everything touched from the callback
+  must be thread-safe or externally synchronised.
+* In `camera_check` the callback only writes to `stdout` and
+  (optionally) the filesystem -- both safe.
+* In `camera_publisher_node` the callback calls
+  `rclcpp::Publisher::publish` (thread-safe), `Logger`, and `Clock`
+  (also thread-safe). It does not touch shared state belonging to the
+  main thread.
+
+### Things worth knowing before you read the code
 
 * **Stride is not `width * bytes_per_pixel`.** Hardware buffers are
-  often padded to align rows. Always use `StreamConfiguration::stride`
-  for `sensor_msgs/Image::step` and for any pixel-by-pixel access. The
-  capture core's `Frame::stride` carries this through.
-* **The completion callback runs on libcamera's thread.** Anything you
-  touch from it must be either thread-safe or protected. In this
-  package the callback only invokes a `std::function` we own, and the
-  ROS path only calls `rclcpp::Publisher::publish` (thread-safe) and
-  `Logger`/`Clock` methods (also thread-safe).
-* **Pixel format is negotiated, not fixed.** Both executables log the
-  negotiated format on startup; the JPEG encoder rejects formats it
-  does not know about (`-ENOTSUP`) rather than producing garbage. If you
-  see a `WARN: unsupported pixel format ...` line, extend
-  `jpeg_encoder.cpp::mapPacked()` or the YUV branch.
+  padded for row alignment. Use `StreamConfiguration::stride` for
+  `sensor_msgs/Image::step` and any pixel-by-pixel work; the capture
+  core's `Frame::stride` carries this through.
+* **Pixel format is negotiated, not fixed.** Startup logs the
+  negotiated format; the JPEG encoder rejects unknown formats with
+  `-ENOTSUP` rather than producing garbage. A `WARN: unsupported
+  pixel format ...` line means extend `jpeg_encoder.cpp::mapPacked()`
+  or the YUV branch.
+* **libcamera XRGB8888 is BGRX in memory** on little-endian, so
+  `jpeg_encoder.cpp` maps it to `TJPF_BGRX`. Mapping it to `TJPF_XRGB`
+  swaps red and blue in the output JPEG.
+
+For the deeper, code-cross-referenced walkthrough of the libcamera
+lifecycle (the full numbered tour matching `camera_capture.cpp`
+section headers), see `LIBCAMERA_LIFECYCLE.md` next to this README.
+That file is local-only and not tracked in git.

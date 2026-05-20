@@ -15,11 +15,18 @@ also verified building and running on **Jazzy** + Qt 6.8 on Ubuntu
 
 Three side-by-side panels in a `RowLayout` (`Main.qml`):
 
-| Panel  | Source                                          |
-| ------ | ----------------------------------------------- |
-| RPM    | derived from speed (speed * 35)                 |
-| Speed  | `/speed` (`std_msgs/Float64`), clamped 0..200   |
-| Camera | `/camera/image_compressed` (JPEG, sensor_data QoS) |
+| Panel  | Source                                                                 |
+| ------ | ---------------------------------------------------------------------- |
+| RPM    | derived from speed (`speed * 35`) -- placeholder, not a real RPM source |
+| Speed  | `/speed` (`std_msgs/Float64`), clamped 0..200 -- placeholder           |
+| Camera | `/camera/image_compressed` (JPEG, sensor_data QoS) -- live from the Pi camera |
+
+The `/speed` topic is currently driven by dummy data (any external
+publisher, e.g. `ros2 topic pub`); RPM is computed from it as a
+placeholder. Both will be replaced with real signals from the CARLA
+simulator rosbag (vehicle speed, engine RPM, gear, etc.) in a later
+iteration. The camera panel is already wired to the real hardware
+path via `camera_publisher_node --mode jpeg`.
 
 Keyboard:
 
