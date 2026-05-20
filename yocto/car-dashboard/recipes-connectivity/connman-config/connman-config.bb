@@ -24,7 +24,8 @@ SRC_URI = "file://wifi.config \
 
 # Source directory - files are in UNPACKDIR (Yocto 5.0+)
 # For older Yocto: use ${WORKDIR} instead
-S = "${UNPACKDIR}"
+#S = "${UNPACKDIR}"
+S = "${WORKDIR}"
 
 # SYSTEMD_SERVICE:${PN} = "enable-wifi.service"
 # SYSTEMD_AUTO_ENABLE = "enable"

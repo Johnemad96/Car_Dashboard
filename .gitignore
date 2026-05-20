@@ -12,6 +12,7 @@ yocto/build-rpi/*
 !yocto/build-rpi/conf/
 !yocto/build-rpi/conf/local.conf
 !yocto/build-rpi/conf/bblayers.conf
+!yocto/build-rpi/workspace/conf/layer.conf
 
 # Ignore Yocto auto-generated conf helper files
 yocto/build-qemu/conf/conf-notes.txt
@@ -42,3 +43,40 @@ yocto/.history/
 # ----------------------------
 yocto/car-dashboard/recipes-connectivity/connman-config/files/wifi.config
 yocto/car-dashboard/recipes-connectivity/connman-config/files/enable-wifi.service
+
+# ----------------------------
+# Captured frame artifacts (debug dumps from camera_check etc.)
+# Match at any depth so they're caught whether they land at the repo root
+# or inside rpi4-camera-imx219/.
+# ----------------------------
+*.raw
+frame_*.png
+tmpframe*
+rpi4-camera-imx219/*.jpg
+scp_pcis/
+
+# ----------------------------
+# colcon / ament build output (camera-publisher and any future ROS pkgs)
+# ----------------------------
+build/
+build-rpi/
+install/
+log/
+
+# ----------------------------
+# qt-dashboard build / IDE artifacts
+# build/ and install/ above already catch the CMake build trees;
+# these rules add the Qt-Creator-specific user files and per-target
+# build dirs (build-rpi/ from the cross-compile script).
+# ----------------------------
+qt-dashboard/build-rpi/
+qt-dashboard/build-*/
+*.user
+*.user.*
+.qtcreator/
+.history/
+.codex/
+.agents/
+rpi4-camera-imx219/CROSS_COMPILE.MD
+rpi4-camera-imx219/camera-publisher/LIBCAMERA_LIFECYCLE.md
+CLAUDE.md
