@@ -58,3 +58,6 @@ TOOLCHAIN_TARGET_TASK:append = " qtbase-staticdev qtdeclarative-staticdev"
 TOOLCHAIN_TARGET_TASK:append = " packagegroup-dashboard-ros-dev"
 
 #TOOLCHAIN_HOST_TASK:append = " nativesdk-python3-ament-package"
+
+IMAGE_INSTALL:append = " v4l-utils libcamera libturbojpeg sensor-msgs gstreamer1.0 gstreamer1.0-plugins-bad gstreamer1.0-plugins-good"
+KERNEL_MODULE_AUTOLOAD:append = " imx219 bcm2835-unicam bcm2835-isp"
